@@ -2,8 +2,14 @@ name: Run Selenium Automation
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # Chạy hàng giờ
-  workflow_dispatch:
+    - cron: '8,38 * * * *'  # Chạy hàng giờ
+      workflow_dispatch:
+
+concurrency:
+  group: my-workflow
+  cancel-in-progress: true  # Hủy job cũ nếu job mới bắt đầu
+
+
 
 permissions:
   contents: write  # Thêm quyền ghi để commit/push file
