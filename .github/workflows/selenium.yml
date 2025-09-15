@@ -3,7 +3,7 @@ name: Run Selenium Automation
 on:
   schedule:
     - cron: '8,38 * * * *'  # Chạy hàng giờ
-      workflow_dispatch:
+  workflow_dispatch:
 
 concurrency:
   group: my-workflow
