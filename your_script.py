@@ -1,4 +1,3 @@
-import time
 import csv
 import logging
 import os
@@ -50,23 +49,45 @@ if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
 
 def login_to_website(sb, username, password):
-    """Hàm thực hiện đăng nhập vào website dùng SeleniumBase"""
+    """Hàm thực hiện đăng nhập trên trang login (nếu đã ở trang login)"""
     logging.info("Đang thực hiện đăng nhập...")
     try:
+        # Kiểm tra nếu đang ở trang login
+        if "Đăng nhập" in sb.get_title():
+            logging.info("Đã ở trang đăng nhập, tự động điền form")
+        else:
+            logging.warning("Không phải trang đăng nhập, kiểm tra redirect")
+        
         username_field = WebDriverWait(sb.driver, 10).until(
             EC.presence_of_element_located((By.NAME, "login"))
         )
+        username_field.clear()
         username_field.send_keys(username)
-        time.sleep(random.uniform(1, 3))
+        sb.sleep(random.uniform(1, 3))
         logging.info("Đã nhập tên đăng nhập")
+        
         password_field = sb.driver.find_element(By.NAME, "password")
+        password_field.clear()
         password_field.send_keys(password)
-        time.sleep(random.uniform(1, 3))
+        sb.sleep(random.uniform(1, 3))
         logging.info("Đã nhập mật khẩu")
-        login_button = sb.driver.find_element(By.XPATH, "//button[contains(., 'Đăng nhập')]")
+        
+        # Check "Duy trì trạng thái đăng nhập" nếu có
+        try:
+            remember_checkbox = sb.driver.find_element(By.NAME, "remember")
+            if not remember_checkbox.is_selected():
+                remember_checkbox.click()
+                sb.sleep(1)
+        except NoSuchElementException:
+            pass  # Không có checkbox thì bỏ qua
+        
+        login_button = sb.driver.find_element(By.CSS_SELECTOR, "button.button--primary[type='submit']")
+        sb.execute_script("arguments[0].scrollIntoView({block: 'center'});", login_button)
         login_button.click()
-        time.sleep(random.uniform(2, 5))
+        sb.sleep(random.uniform(3, 6))
         logging.info("Đã click nút đăng nhập")
+        
+        # Wait cho trang reply sau login (editor comment)
         WebDriverWait(sb.driver, 30).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "div.fr-element.fr-view[contenteditable='true']"))
         )
@@ -74,10 +95,10 @@ def login_to_website(sb, username, password):
         return True
     except (TimeoutException, NoSuchElementException) as e:
         logging.error(f"Lỗi trong quá trình đăng nhập: {str(e)}")
-        logging.info(f"Current URL: {sb.driver.current_url}")
+        logging.info(f"Current URL: {sb.get_current_url()}")
         with open('error_page_source.html', 'w', encoding='utf-8') as f:
             f.write(sb.get_page_source())
-        sb.driver.save_screenshot('login_error.png')
+        sb.save_screenshot('login_error.png')
         logging.info("Đã lưu page source và screenshot để debug")
         return False
 
@@ -88,32 +109,39 @@ def post_comment(sb, comment_text):
         editor = WebDriverWait(sb.driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, "div.fr-element.fr-view[contenteditable='true']"))
         )
-        sb.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", editor)
-        time.sleep(random.uniform(1, 3))
-        sb.driver.execute_script("arguments[0].innerHTML = '';", editor)
-        sb.driver.execute_script("arguments[0].innerText = arguments[1];", editor, comment_text)
-        sb.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", editor)
-        time.sleep(random.uniform(1, 3))
+        sb.execute_script("arguments[0].scrollIntoView({block: 'center'});", editor)
+        sb.sleep(random.uniform(1, 3))
+        sb.execute_script("arguments[0].innerHTML = '';", editor)
+        sb.execute_script("arguments[0].innerText = arguments[1];", editor, comment_text)
+        sb.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", editor)
+        sb.sleep(random.uniform(1, 3))
         logging.info("Đã nhập nội dung bình luận")
+        
+        # Simulate human: Random scroll
+        sb.execute_script("window.scrollTo(0, document.body.scrollHeight / 2);")
+        sb.sleep(random.uniform(1, 2))
+        
         submit_button = WebDriverWait(sb.driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//button[@type='submit' and .//span[contains(text(), 'Trả lời')]]"))
         )
-        sb.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", submit_button)
-        sb.driver.execute_script("arguments[0].click();", submit_button)
-        time.sleep(random.uniform(2, 5))
+        sb.execute_script("arguments[0].scrollIntoView({block: 'center'});", submit_button)
+        sb.execute_script("arguments[0].click();", submit_button)
+        sb.sleep(random.uniform(3, 6))
         logging.info("Đã click nút đăng bình luận")
+        
+        # Wait cho editor reset sau post
         WebDriverWait(sb.driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "div.fr-element.fr-view[contenteditable='true']"))
         )
         logging.info("Bình luận đã được đăng thành công!")
-        time.sleep(1)
+        sb.sleep(2)
         return True
     except (TimeoutException, NoSuchElementException, ElementClickInterceptedException) as e:
         logging.error(f"Lỗi trong quá trình đăng bình luận: {str(e)}")
-        logging.info(f"Current URL: {sb.driver.current_url}")
+        logging.info(f"Current URL: {sb.get_current_url()}")
         with open('error_page_source.html', 'w', encoding='utf-8') as f:
             f.write(sb.get_page_source())
-        sb.driver.save_screenshot('post_error.png')
+        sb.save_screenshot('post_error.png')
         logging.info("Đã lưu page source và screenshot để debug")
         return False
 
@@ -157,26 +185,27 @@ def main():
         logging.error(f"Lỗi khi đọc file CSV: {str(e)}")
         return
     
-    with SB(uc=True, headless=True) as sb:  # Bỏ cdp_mode
+    with SB(uc=True, headless=True) as sb:
         try:
             logging.info(f"Đang mở trang web: {website_url}")
-            # Retry tối đa 3 lần để bypass Cloudflare
+            # Retry tối đa 3 lần để bypass Cloudflare (nếu còn)
             max_retries = 3
             for attempt in range(max_retries):
-                sb.uc_open_with_reconnect(website_url, reconnect_time=20)  # Tăng reconnect time
-                time.sleep(random.uniform(15, 25))  # Chờ lâu hơn cho Cloudflare
+                sb.uc_open_with_reconnect(website_url, reconnect_time=20)
+                sb.sleep(random.uniform(15, 25))  # Dùng sb.sleep thay time.sleep
                 
-                if "Just a moment..." not in sb.get_current_title() and "Just a moment..." not in sb.get_page_source():
+                # Fix: Sử dụng sb.get_title() và sb.get_page_source()
+                if "Just a moment..." not in sb.get_title() and "Just a moment..." not in sb.get_page_source():
                     break  # Thành công, thoát vòng retry
                 logging.warning(f"Cloudflare anti-bot page detected (attempt {attempt + 1}/{max_retries})")
                 with open(f'cloudflare_page_source_attempt_{attempt + 1}.html', 'w', encoding='utf-8') as f:
                     f.write(sb.get_page_source())
-                sb.driver.save_screenshot(f'cloudflare_error_attempt_{attempt + 1}.png')
+                sb.save_screenshot(f'cloudflare_error_attempt_{attempt + 1}.png')
                 logging.info(f"Đã lưu page source và screenshot (attempt {attempt + 1}) để debug")
                 if attempt < max_retries - 1:
-                    time.sleep(random.uniform(5, 10))  # Chờ trước khi retry
+                    sb.sleep(random.uniform(5, 10))
             
-            if "Just a moment..." in sb.get_current_title() or "Just a moment..." in sb.get_page_source():
+            if "Just a moment..." in sb.get_title() or "Just a moment..." in sb.get_page_source():
                 logging.error("Không thể bypass Cloudflare sau tất cả các lần thử")
                 return
             
@@ -191,6 +220,7 @@ def main():
                 logging.error("USERNAME hoặc PASSWORD không được cung cấp qua environment variables")
                 return
             
+            # Thực hiện login (sẽ tự động nếu ở trang login)
             if not login_to_website(sb, username, password):
                 logging.error("Đăng nhập thất bại, dừng chương trình")
                 return
@@ -205,7 +235,7 @@ def main():
             logging.error(f"Lỗi không mong muốn: {str(e)}")
             with open('error_page_source.html', 'w', encoding='utf-8') as f:
                 f.write(sb.get_page_source())
-            sb.driver.save_screenshot('error_page.png')
+            sb.save_screenshot('error_page.png')
             logging.info("Đã lưu page source và screenshot để debug")
 
 if __name__ == "__main__":
