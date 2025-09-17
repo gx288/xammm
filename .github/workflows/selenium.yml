@@ -35,8 +35,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install setuptools==75.1.0 selenium==4.25.0 seleniumbase==4.31.6
-        pip show setuptools selenium seleniumbase || echo "Failed to install dependencies"
+        pip install setuptools==75.1.0 selenium==4.25.0 seleniumbase==4.31.6 webdriver-manager==4.0.2
+        pip show setuptools selenium seleniumbase webdriver-manager || echo "Failed to install dependencies"
         pip list  # Log danh sách package để debug
 
     - name: Setup Chrome and Chromedriver
