@@ -157,21 +157,28 @@ def main():
         logging.error(f"Lỗi khi đọc file CSV: {str(e)}")
         return
     
-    with SB(uc=True, headless=True, cdp_mode=True) as sb:
+    with SB(uc=True, headless=True) as sb:  # Bỏ cdp_mode
         try:
             logging.info(f"Đang mở trang web: {website_url}")
-            sb.uc_open_with_reconnect(website_url, reconnect_time=10)
-            time.sleep(random.uniform(10, 20))
+            # Retry tối đa 3 lần để bypass Cloudflare
+            max_retries = 3
+            for attempt in range(max_retries):
+                sb.uc_open_with_reconnect(website_url, reconnect_time=20)  # Tăng reconnect time
+                time.sleep(random.uniform(15, 25))  # Chờ lâu hơn cho Cloudflare
+                
+                if "Just a moment..." not in sb.get_current_title() and "Just a moment..." not in sb.get_page_source():
+                    break  # Thành công, thoát vòng retry
+                logging.warning(f"Cloudflare anti-bot page detected (attempt {attempt + 1}/{max_retries})")
+                with open(f'cloudflare_page_source_attempt_{attempt + 1}.html', 'w', encoding='utf-8') as f:
+                    f.write(sb.get_page_source())
+                sb.driver.save_screenshot(f'cloudflare_error_attempt_{attempt + 1}.png')
+                logging.info(f"Đã lưu page source và screenshot (attempt {attempt + 1}) để debug")
+                if attempt < max_retries - 1:
+                    time.sleep(random.uniform(5, 10))  # Chờ trước khi retry
             
             if "Just a moment..." in sb.get_current_title() or "Just a moment..." in sb.get_page_source():
-                logging.error("Vẫn phát hiện Cloudflare anti-bot page")
-                with open('cloudflare_page_source.html', 'w', encoding='utf-8') as f:
-                    f.write(sb.get_page_source())
-                sb.driver.save_screenshot('cloudflare_error.png')
-                logging.info("Đã lưu page source và screenshot để debug")
-                sb.activate_cdp_mode(website_url)
-                sb.uc_open_with_reconnect(website_url, reconnect_time=15)
-                time.sleep(15)
+                logging.error("Không thể bypass Cloudflare sau tất cả các lần thử")
+                return
             
             WebDriverWait(sb.driver, 30).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
