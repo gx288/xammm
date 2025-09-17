@@ -10,19 +10,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
-from webdriver_manager.chrome import ChromeDriverManager  # Giữ nguyên, nhưng uc sẽ tự quản lý driver
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
-import undetected_chromedriver as uc  # Thêm import này
+import undetected_chromedriver as uc
 
 # Lấy đường dẫn đúng cho file khi chạy dưới dạng thực thi hoặc mã nguồn
 def get_resource_path(relative_path):
     """Lấy đường dẫn đúng cho file khi chạy dưới dạng thực thi hoặc mã nguồn"""
     if hasattr(sys, '_MEIPASS'):
-        # Khi chạy dưới dạng file thực thi, lấy đường dẫn từ thư mục chứa .exe
         return os.path.join(os.path.dirname(sys.executable), relative_path)
     else:
-        # Khi chạy mã nguồn, lấy đường dẫn tương đối
         return os.path.join(os.path.dirname(__file__), relative_path)
 
 # Đọc cấu hình từ file config.json
@@ -63,28 +61,27 @@ def setup_driver():
     """Khởi tạo WebDriver với undetected_chromedriver để tránh phát hiện bot."""
     logging.info("Đang khởi tạo undetected-chromedriver...")
     options = Options()
-    options.add_argument('--headless')  # Giữ headless, nhưng uc sẽ làm nó giống thật hơn
-    options.add_argument('--disable-blink-features=AutomationControlled')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--disable-extensions')
-    options.add_argument('--disable-plugins-discovery')
-    options.add_argument('--disable-dev-tools')
-    options.add_argument('--window-size=1920,1080')
+    options.add_argument('--headless')  # Headless mode
+    options.add_argument('--no-sandbox')  # Required for GitHub Actions
+    options.add_argument('--disable-dev-shm-usage')  # Prevent memory issues
+    options.add_argument('--disable-gpu')  # Disable GPU in headless mode
+    options.add_argument('--disable-extensions')  # Disable extensions
+    options.add_argument('--disable-plugins-discovery')  # Disable plugins
+    options.add_argument('--window-size=1920,1080')  # Set window size
     options.add_argument(
         'user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
     
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option('useAutomationExtension', False)
+    # Remove excludeSwitches and useAutomationExtension to avoid InvalidArgumentException
+    # undetected-chromedriver handles these internally
+    options.add_argument('--disable-blink-features=AutomationControlled')
     
-    # Sử dụng undetected_chromedriver thay vì webdriver.Chrome
-    driver = uc.Chrome(options=options)  # uc tự download và patch driver
+    # Initialize undetected-chromedriver
+    driver = uc.Chrome(options=options)
     
+    # Set additional browser properties
     driver.execute_cdp_cmd('Network.setUserAgentOverride', {
         "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     })
-    
     driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
     driver.execute_cdp_cmd('Emulation.setLocaleOverride', {"locale": "vi-VN"})
     driver.execute_cdp_cmd('Emulation.setTimezoneOverride', {"timezoneId": "Asia/Ho_Chi_Minh"})
@@ -205,7 +202,7 @@ def main():
     try:
         logging.info(f"Đang mở trang web: {website_url}")
         driver.get(website_url)
-        time.sleep(random.uniform(10, 15))  # Chờ lâu hơn để Cloudflare challenge tự giải quyết
+        time.sleep(random.uniform(10, 15))  # Wait for Cloudflare challenge
         if "Just a moment..." in driver.title or "Just a moment..." in driver.page_source:
             logging.error("Vẫn phát hiện Cloudflare anti-bot page")
             with open('cloudflare_page_source.html', 'w', encoding='utf-8') as f:
@@ -214,7 +211,7 @@ def main():
             logging.info("Đã lưu page source và screenshot để debug")
             driver.quit()
             return
-        WebDriverWait(driver, 20).until(  # Tăng timeout
+        WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
         logging.info("Trang web đã tải xong")
@@ -235,6 +232,10 @@ def main():
             logging.error("Không thể đăng bình luận, giữ nguyên file data.csv")
     except Exception as e:
         logging.error(f"Lỗi không mong muốn: {str(e)}")
+        with open('error_page_source.html', 'w', encoding='utf-8') as f:
+            f.write(driver.page_source)
+        driver.save_screenshot('error_page.png')
+        logging.info("Đã lưu page source và screenshot để debug")
     finally:
         driver.quit()
         logging.info("Đã đóng trình duyệt")
