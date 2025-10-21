@@ -1,7 +1,7 @@
 name: Run Selenium Automation
 on:
   schedule:
-    - cron: '5 3,8,14,20 * * *' # Chạy hàng giờ
+    - cron: '2 2 * 7 2' # Chạy hàng giờ
   workflow_dispatch:
 permissions:
   contents: write # Thêm quyền ghi để commit/push file
