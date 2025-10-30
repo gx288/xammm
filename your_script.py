@@ -52,54 +52,60 @@ def login_to_website(sb, username, password):
     """Hàm thực hiện đăng nhập trên trang login (nếu đã ở trang login)"""
     logging.info("Đang thực hiện đăng nhập...")
     try:
-        # Kiểm tra nếu đang ở trang login
-        if "Đăng nhập" in sb.get_title():
-            logging.info("Đã ở trang đăng nhập, tự động điền form")
-        else:
-            logging.warning("Không phải trang đăng nhập, kiểm tra redirect")
-        
-        username_field = WebDriverWait(sb.driver, 10).until(
-            EC.presence_of_element_located((By.NAME, "login"))
+        # Đợi trường username có thể nhập
+        username_field = WebDriverWait(sb.driver, 15).until(
+            EC.element_to_be_clickable((By.NAME, "login"))
         )
         username_field.clear()
         username_field.send_keys(username)
         sb.sleep(random.uniform(1, 3))
         logging.info("Đã nhập tên đăng nhập")
-        
+
         password_field = sb.driver.find_element(By.NAME, "password")
         password_field.clear()
         password_field.send_keys(password)
         sb.sleep(random.uniform(1, 3))
         logging.info("Đã nhập mật khẩu")
-        
-        # Check "Duy trì trạng thái đăng nhập" nếu có
+
+        # Check "Duy trì trạng thái đăng nhập"
         try:
             remember_checkbox = sb.driver.find_element(By.NAME, "remember")
             if not remember_checkbox.is_selected():
-                remember_checkbox.click()
-                sb.sleep(1)
+                sb.execute_script("arguments[0].click();", remember_checkbox)
         except NoSuchElementException:
-            pass  # Không có checkbox thì bỏ qua
-        
-        login_button = sb.driver.find_element(By.CSS_SELECTOR, "button.button--primary[type='submit']")
+            pass
+
+        # Tìm nút Đăng nhập bằng text
+        login_button = WebDriverWait(sb.driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'button--primary') and .//span[text()='Đăng nhập']]"))
+        )
         sb.execute_script("arguments[0].scrollIntoView({block: 'center'});", login_button)
-        login_button.click()
-        sb.sleep(random.uniform(3, 6))
-        logging.info("Đã click nút đăng nhập")
-        
-        # Wait cho trang reply sau login (editor comment)
+        sb.sleep(1)
+
+        # Thử click bình thường, nếu lỗi thì dùng JS
+        try:
+            login_button.click()
+            logging.info("Đã click nút đăng nhập (thông thường)")
+        except ElementClickInterceptedException:
+            logging.warning("Click bị chặn, dùng JavaScript...")
+            sb.execute_script("arguments[0].click();", login_button)
+            logging.info("Đã click nút đăng nhập (JS)")
+
+        sb.sleep(random.uniform(4, 7))
+
+        # Đợi chuyển sang trang reply (editor hiện ra)
         WebDriverWait(sb.driver, 30).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "div.fr-element.fr-view[contenteditable='true']"))
         )
         logging.info("Đăng nhập thành công và đã chuyển đến trang bình luận")
         return True
-    except (TimeoutException, NoSuchElementException) as e:
+
+    except Exception as e:
         logging.error(f"Lỗi trong quá trình đăng nhập: {str(e)}")
         logging.info(f"Current URL: {sb.get_current_url()}")
         with open('error_page_source.html', 'w', encoding='utf-8') as f:
             f.write(sb.get_page_source())
         sb.save_screenshot('login_error.png')
-        logging.info("Đã lưu page source và screenshot để debug")
         return False
 
 def post_comment(sb, comment_text):
