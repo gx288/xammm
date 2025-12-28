@@ -23,15 +23,15 @@ def load_config():
     try:
         with open(config_path, 'r', encoding='utf-8') as file:
             config = json.load(file)
-            website_url = config.get('website_url', 'https://xamvn.blog/threads/171635/reply')
+            website_url = config.get('website_url', 'https://xamvn.guru/threads/171635/reply')
             data_csv_path = config.get('data_csv_path', 'data.csv')
             return {'website_url': website_url, 'data_csv_path': data_csv_path}
     except FileNotFoundError:
         logging.error(f"File config.json không tồn tại tại {config_path}")
-        return {'website_url': 'https://xamvn.blog/threads/171635/reply', 'data_csv_path': 'data.csv'}
+        return {'website_url': 'https://xamvn.guru/threads/171635/reply', 'data_csv_path': 'data.csv'}
     except json.JSONDecodeError:
         logging.error("File config.json không đúng định dạng JSON")
-        return {'website_url': 'https://xamvn.blog/threads/171635/reply', 'data_csv_path': 'data.csv'}
+        return {'website_url': 'https://xamvn.guru/threads/171635/reply', 'data_csv_path': 'data.csv'}
 
 log_directory = os.path.join(os.path.expanduser("~"), "Documents")
 if not os.path.exists(log_directory):
