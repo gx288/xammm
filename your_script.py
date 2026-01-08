@@ -116,7 +116,7 @@ def post_comment(sb, comment_text):
             EC.element_to_be_clickable((By.CSS_SELECTOR, "div.fr-element.fr-view[contenteditable='true']"))
         )
         # Nội dung bạn muốn thêm
-        contact_info = "Nhận đẩy bài xamvn. Ai cần ib nhé"
+        contact_info = "Thanks"
         final_text = f"{comment_text}\n{contact_info}"
         
         sb.execute_script("arguments[0].scrollIntoView({block: 'center'});", editor)
