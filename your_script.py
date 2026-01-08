@@ -115,14 +115,20 @@ def post_comment(sb, comment_text):
         editor = WebDriverWait(sb.driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, "div.fr-element.fr-view[contenteditable='true']"))
         )
+        # Nội dung bạn muốn thêm
+        contact_info = "Nhận đẩy bài xamvn. Ai cần ib nhé"
+        final_text = f"{comment_text}\n{contact_info}"
+        
         sb.execute_script("arguments[0].scrollIntoView({block: 'center'});", editor)
         sb.sleep(random.uniform(1, 3))
         sb.execute_script("arguments[0].innerHTML = '';", editor)
-        sb.execute_script("arguments[0].innerText = arguments[1];", editor, comment_text)
+        
+        # Sử dụng final_text đã có dòng liên hệ
+        sb.execute_script("arguments[0].innerText = arguments[1];", editor, final_text)
+        
         sb.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", editor)
         sb.sleep(random.uniform(1, 3))
-        logging.info("Đã nhập nội dung bình luận")
-        
+        logging.info("Đã nhập nội dung bình luận có kèm thông tin liên hệ")
         # Simulate human: Random scroll
         sb.execute_script("window.scrollTo(0, document.body.scrollHeight / 2);")
         sb.sleep(random.uniform(1, 2))
